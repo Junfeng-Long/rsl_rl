@@ -43,11 +43,24 @@ class DynamicsModel(nn.Module):
         self.dynamics_model = nn.Sequential(*dynamics_model_layers)
         # Optimizer
         self.optimizer = optim.Adam(self.dynamics_model.parameters(), lr=1e-5)
+        self.loss = 0
 
         print(f"Dynamics Model: {self.dynamics_model}")
 
     def forward(self, observations, actions):
         return self.dynamics_model(torch.cat([observations, actions], dim=-1))
+    
+    # def accumulate_loss(self, observations, actions, next_observations):
+    #     predicted_next_observations = self.forward(observations, actions)
+    #     self.loss += nn.MSELoss(reduction='sum')(predicted_next_observations, next_observations).item()
+        
+    # def optimize(self):
+    #     self.optimizer.zero_grad()
+    #     self.loss.backward()
+    #     self.optimizer.step()
+    #     loss = self.loss.item()
+    #     self.loss = 0
+    #     return loss
     
     def optimize(self, observations, actions, next_observations):
         self.optimizer.zero_grad()

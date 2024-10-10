@@ -105,6 +105,7 @@ class DynamicsModelRunner:
             # with torch.inference_mode():
             for i in range(self.num_steps_per_env):
                 actions = self.alg.act(obs, critic_obs)
+                actions += torch.randn_like(actions) * 4 * min(it / 2000, 1)
                 prev_obs = torch.clone(obs)
                 obs, rewards, dones, infos = self.env.step(actions)
                 obs = self.obs_normalizer(obs)
@@ -143,7 +144,7 @@ class DynamicsModelRunner:
 
             # Learning step
             start = stop
-            mean_dynamics_model_loss /= self.num_steps_per_env
+            # mean_dynamics_model_loss = self.dynamics_model.optimize()
             stop = time.time()
             learn_time = stop - start
             self.current_learning_iteration = it
@@ -277,6 +278,17 @@ class DynamicsModelRunner:
         if self.logger_type in ["neptune", "wandb"]:
             self.writer.save_model(path, self.current_learning_iteration)
 
+    def load_dynamics_model(self, path, load_optimizer=True):
+        loaded_dict = torch.load(path)
+        self.dynamics_model.dynamics_model.load_state_dict(loaded_dict["model_state_dict"])
+        if self.empirical_normalization:
+            self.obs_normalizer.load_state_dict(loaded_dict["obs_norm_state_dict"])
+            self.critic_obs_normalizer.load_state_dict(loaded_dict["critic_obs_norm_state_dict"])
+        if load_optimizer:
+            self.dynamics_model.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
+        self.current_learning_iteration = loaded_dict["iter"]
+        return loaded_dict["infos"]
+    
     def load(self, path, load_optimizer=True):
         loaded_dict = torch.load(path)
         self.alg.actor_critic.load_state_dict(loaded_dict["model_state_dict"])
